@@ -5,7 +5,7 @@ pipeline {
         }
     
     environment {
-        DOCKER_HUB_USER = credentials('dockerhub_username')
+        DOCKER_HUB_USERNAME = credentials('dockerhub_username')
         IMAGE_NAME      = 'sample-app'
         IMAGE_TAG       = "${BUILD_NUMBER}" // Uses Jenkins build number as image tag
         GITHUB_USER     = credentials('github_username')
@@ -17,7 +17,7 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker Image..."
-                    sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                    sh "docker build -t ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} ."
                 }
             }
         }
@@ -27,7 +27,7 @@ pipeline {
                 // Uses the credential ID we created earlier in Jenkins
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USERNAME')]) {
                     sh "echo ${DOCKER_HUB_PASSWORD} | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin"
-                    sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    sh "docker push ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
                 }
             }
         }
@@ -46,7 +46,7 @@ pipeline {
                         cd ${MANIFEST_REPO}
                         
                         # Use sed to update the image tag dynamically in your deployment configuration
-                        sed -i 's|image: .*|image: docker.io/${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g' templates/deployment.yaml
+                        sed -i 's|image: .*|image: docker.io/${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}|g' templates/deployment.yaml
                         
                         # Commit the change back to the main branch
                         git add templates/deployment.yaml
