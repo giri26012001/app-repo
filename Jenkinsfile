@@ -1,54 +1,48 @@
 pipeline {
     agent any
-        tools {
-            dockerTool 'docker'
-        }
     
     environment {
-        DOCKER_HUB_USERNAME = credentials('dockerhub_username')
-        IMAGE_NAME      = 'sample-app'
-        IMAGE_TAG       = "${BUILD_NUMBER}" // Uses Jenkins build number as image tag
-        GITHUB_USER     = credentials('github_username')
-        MANIFEST_REPO   = 'k8s-manifest-repo'
+        IMAGE_NAME    = 'sample-app'
+        IMAGE_TAG     = "${BUILD_NUMBER}"
+        MANIFEST_REPO = 'k8s-manifest-repo'
     }
     
     stages {
-        stage('Build Docker Image') {
+        stage('Build & Push Docker Image') {
             steps {
-                script {
-                    echo "Building Docker Image..."
-                    sh "docker build -t ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG} ."
-                }
-            }
-        }
-        
-        stage('Push to Docker Hub') {
-            steps {
-                // Uses the credential ID we created earlier in Jenkins
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USERNAME')]) {
-                    sh "echo ${DOCKER_HUB_PASSWORD} | docker login -u ${DOCKER_HUB_USERNAME} --password-stdin"
-                    sh "docker push ${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+                // Dynamically binds BOTH the username and password fields from your dockerhub-credentials profile
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
+                    script {
+                        echo "Building Docker Image for user: ${DOCKER_HUB_USER}..."
+                        sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
+                        
+                        echo "Logging into Docker Hub..."
+                        sh "echo ${DOCKER_HUB_PASSWORD} | docker login -u ${DOCKER_HUB_USER} --password-stdin"
+                        
+                        echo "Pushing Image..."
+                        sh "docker push ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                    }
                 }
             }
         }
         
         stage('Update K8s Manifests') {
             steps {
-                // Uses the GitHub Classic Token credential we created earlier
+                // Dynamically binds BOTH the username and password fields from your github-credentials profile
                 withCredentials([usernamePassword(credentialsId: 'github-credentials', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                     sh """
-                        # Configure local Git identity inside container
+                        # Configure local Git identity
                         git config --global user.email "jenkins@local.internal"
                         git config --global user.name "Jenkins Automation"
                         
-                        # Clone the infrastructure repository cleanly
-                        git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GITHUB_USER}/${MANIFEST_REPO}.git
+                        # Clone the infrastructure repository cleanly using dynamic environment variables
+                        git clone https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GIT_USERNAME}/${MANIFEST_REPO}.git
                         cd ${MANIFEST_REPO}
                         
-                        # Use sed to update the image tag dynamically in your deployment configuration
-                        sed -i 's|image: .*|image: docker.io/${DOCKER_HUB_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}|g' templates/deployment.yaml
+                        # Use double quotes for sed to safely handle the injected environment variables
+                        sed -i "s|image: .*|image: docker.io/${GIT_USERNAME}/${IMAGE_NAME}:${IMAGE_TAG}|g" templates/deployment.yaml
                         
-                        # Commit the change back to the main branch
+                        # Commit and push the change back to the main branch
                         git add templates/deployment.yaml
                         git commit -m "Automated build update: Image tag ${IMAGE_TAG} [skip ci]"
                         git push origin main
