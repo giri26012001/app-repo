@@ -3,12 +3,12 @@ pipeline {
     
     environment {
         // Replace with your actual Docker Hub username
-        DOCKER_HUB_USER = 'your_dockerhub_username'
+        DOCKER_HUB_USER = credentials('dockerhub_username')
         IMAGE_NAME      = 'sample-app'
         IMAGE_TAG       = "${BUILD_NUMBER}" // Uses Jenkins build number as image tag
         
         // Replace with your actual GitHub username and repo name
-        GITHUB_USER     = 'your_github_username'
+        GITHUB_USER     = credentials('github_username')
         MANIFEST_REPO   = 'k8s-manifest-repo'
     }
     
