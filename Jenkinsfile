@@ -10,8 +10,8 @@ pipeline {
     stages {
         stage('Build & Push Docker Image') {
             steps {
-                // Dynamically binds BOTH the username and password fields from your dockerhub-credentials profile
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
+                // Dynamically binds BOTH the username and password fields from your docker-hub-credentials profile
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', passwordVariable: 'DOCKER_HUB_PASSWORD', usernameVariable: 'DOCKER_HUB_USER')]) {
                     script {
                         echo "Building Docker Image for user: ${DOCKER_HUB_USER}..."
                         sh "docker build -t ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} ."
